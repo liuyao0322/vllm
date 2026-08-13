@@ -165,6 +165,10 @@ class TorchDistGlooStagedEplbCommunicator(EplbCommunicator):
         self._ops: list[tuple[str, torch.Tensor, int]] = []
         self._log_initialized()
 
+    @property
+    def needs_profile_buffer_reservation(self) -> bool:
+        return False
+
     def add_send(
         self,
         tensors: list[torch.Tensor],

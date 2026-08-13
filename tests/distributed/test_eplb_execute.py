@@ -393,13 +393,20 @@ def _test_e8m0_transport_worker(
         assert registered_scale.data_ptr() == weight_scale.data_ptr()
 
         expert_buffer = [torch.empty_like(w) for w in expert_weights[0]]
-        communicator = create_eplb_communicator_or_raise(
+        profile_communicator = create_eplb_communicator_or_raise(
+            group_coordinator=ep_group_coordinator,
+            backend="torch_nccl",
+            expert_weights=expert_weights,
+            expert_buffer=expert_buffer,
+        )
+        assert profile_communicator.needs_profile_buffer_reservation
+        gloo_communicator = create_eplb_communicator_or_raise(
             group_coordinator=ep_group_coordinator,
             backend="torch_gloo",
             expert_weights=expert_weights,
             expert_buffer=expert_buffer,
         )
-        assert communicator.needs_profile_buffer_reservation
+        assert not gloo_communicator.needs_profile_buffer_reservation
         original_weights = [weight.clone() for weight in expert_weights[0]]
 
         rearrange_expert_weights_inplace(
@@ -408,7 +415,7 @@ def _test_e8m0_transport_worker(
             expert_weights,
             expert_buffer,
             ep_group,
-            communicator,
+            profile_communicator,
             is_profile=True,
         )
         assert all(
@@ -425,7 +432,7 @@ def _test_e8m0_transport_worker(
             expert_weights,
             expert_buffer,
             ep_group,
-            communicator,
+            gloo_communicator,
         )
 
     expected_weight, expected_scale = _e8m0_expert_values(
